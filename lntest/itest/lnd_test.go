@@ -298,6 +298,15 @@ func closeChannelAndAssertType(ctx context.Context, t *harnessTest,
 	net *lntest.NetworkHarness, node *lntest.HarnessNode,
 	fundingChanPoint *lnrpc.ChannelPoint, anchors, force bool) *chainhash.Hash {
 
+	t.Log("vvvvvvvvvvvvv  before close vvvvvvvvvvv")
+	utxos, err := node.ListUnspent(ctx, &lnrpc.ListUnspentRequest{})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, u := range utxos.Utxos {
+		t.Logf("%s:%d", u.Outpoint.TxidStr, u.Outpoint.OutputIndex)
+	}
+
 	// Fetch the current channel policy. If the channel is currently
 	// enabled, we will register for graph notifications before closing to
 	// assert that the node sends out a disabling update as a result of the
@@ -421,6 +430,21 @@ func assertChannelClosed(ctx context.Context, t *harnessTest,
 		expectedTxes = 2
 	}
 
+	_, err = waitForNTxsInMempool(net.Miner.Node, expectedTxes, 5*time.Second)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	time.Sleep(5 * time.Second)
+	node.AddToLog("---------------------- waited for txs\n")
+	t.Log("vvvvvvvvvvvvv  before mining close vvvvvvvvvvv")
+	utxos, err := node.ListUnspent(ctx, &lnrpc.ListUnspentRequest{})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, u := range utxos.Utxos {
+		t.Logf("%s:%d", u.Outpoint.TxidStr, u.Outpoint.OutputIndex)
+	}
+
 	block := mineBlocks(t, net, 1, expectedTxes)[0]
 
 	closingTxid, err := net.WaitForChannelClose(ctx, closeUpdates)
@@ -429,6 +453,16 @@ func assertChannelClosed(ctx context.Context, t *harnessTest,
 	}
 
 	assertTxInBlock(t, block, closingTxid)
+
+	time.Sleep(5 * time.Second)
+	t.Log("vvvvvvvvvvvvv  after mining close vvvvvvvvvvv")
+	utxos, err = node.ListUnspent(ctx, &lnrpc.ListUnspentRequest{})
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	for _, u := range utxos.Utxos {
+		t.Logf("%s:%d", u.Outpoint.TxidStr, u.Outpoint.OutputIndex)
+	}
 
 	// Finally, the transaction should no longer be in the waiting close
 	// state as we've just mined a block that should include the closing

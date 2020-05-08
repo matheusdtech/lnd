@@ -100,6 +100,8 @@ func testMultiHopHtlcRemoteChainClaim(net *lntest.NetworkHarness, t *harnessTest
 	aliceForceClose := closeChannelAndAssertType(ctxt, t, net, alice,
 		aliceChanPoint, c == commitTypeAnchors, true)
 
+	alice.AddToLog("------------------------ gonna force close alice->bob\n")
+
 	// Wait for the channel to be marked pending force close.
 	ctxt, _ = context.WithTimeout(ctxb, defaultTimeout)
 	err = waitForChannelPendingForceClose(ctxt, alice, aliceChanPoint)
